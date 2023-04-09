@@ -48,7 +48,6 @@ def main():
     validMoves = gs.getValidMoves()
     moveMade = False #flag variable for when a move is made
 
-
     running = True
     sqSelected = ()  # no square is selected. Keep track of the last click of the user (tuple: (row,col))
     playerClicks = []  # keep track of player clicks( two tuples: [(6 , 4), (4, 4)])
@@ -81,8 +80,10 @@ def main():
                     if move in validMoves:
                         gs.makeMove(move)
                         moveMade = True
-                    sqSelected = ()  # reset user clicks
-                    playerClicks = []
+                        sqSelected = ()  # reset user clicks
+                        playerClicks = []
+                    else:
+                        playerClicks = [sqSelected]
 
             # key handlers
             elif e.type == p.KEYDOWN:
