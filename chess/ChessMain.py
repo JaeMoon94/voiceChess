@@ -76,7 +76,7 @@ def main():
                     # Player Clicks[0] indicates initial move from the user
                     # Player Clicks[1] indicates final move from the user.
                     move = ChessEngine.Move(playerClicks[0], playerClicks[1], gs.board)
-                    print(move.getChessNotation())
+                    # print(move.getChessNotation())
                     if move in validMoves:
                         gs.makeMove(move)
                         moveMade = True
@@ -116,10 +116,15 @@ Draw the squares on the board.
 
 def drawBoard(screen):
     colors = [p.Color("white"), p.Color("gray")]
+    font = p.font.SysFont('Raleway', 1, bold = True)
+    green = (0, 0, 255)
+    letter1 = font.render("8", False, green)
     for r in range(DIMENSION):
         for c in range(DIMENSION):
             color = colors[(r + c) % 2]
             p.draw.rect(screen, color, p.Rect(c * SQ_SIZE, r * SQ_SIZE, SQ_SIZE, SQ_SIZE))
+            # screen.blit(letter1, (r, c))
+
 
 
 '''
