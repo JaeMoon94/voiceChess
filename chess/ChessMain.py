@@ -77,12 +77,15 @@ def main():
                     # Player Clicks[1] indicates final move from the user.
                     move = ChessEngine.Move(playerClicks[0], playerClicks[1], gs.board)
                     # print(move.getChessNotation())
-                    if move in validMoves:
-                        gs.makeMove(move)
-                        moveMade = True
-                        sqSelected = ()  # reset user clicks
-                        playerClicks = []
-                    else:
+                    for i in range(len(validMoves)):
+                        if move == validMoves[i]:
+                            gs.makeMove(validMoves[i])
+                            moveMade = True
+                            sqSelected = ()  # reset user clicks
+                            playerClicks = []
+                            if move.isEnPassantMove:
+                                print("en passant")
+                    if not moveMade:
                         playerClicks = [sqSelected]
 
             # key handlers
