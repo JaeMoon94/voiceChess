@@ -1,10 +1,9 @@
 import threading
 
 import pygame as p
-from chess import ChessEngine
+from chess import ChessEngine, SmartMoveFinder
 import speech_recognition as sr
 import pyttsx3  # to create response
-import spacy  # package to extract the features
 from transformers import pipeline
 from queue import Queue
 import re
@@ -121,53 +120,64 @@ def main():
     playerClicks = []  # keep track of player clicks( two tuples: [(6 , 4), (4, 4)])
     # Initialize Image
     loadImages()
+    playerOne = True  # if a human is playing white, then this will be true.
+    playerTwo = False  # if a human is playing black, then this will be true.
     while running:
+        humanTurn = (gs.whiteToMove and playerOne) or (not gs.whiteToMove and playerTwo)
         for e in p.event.get():
             if e.type == p.QUIT:
                 isStop = False
                 running = False
-
-
             # Mouse Handelr
             elif e.type == p.MOUSEBUTTONDOWN:
-                location = p.mouse.get_pos()  # (x, y) location of mouse
-                col = location[0] // SQ_SIZE
-                row = location[1] // SQ_SIZE
-                if sqSelected == (row, col):  # the user clicked the same square twice
-                    sqSelected = ()  # deselect
-                    playerClicks = []  # clear player clicks
-                else:
+                if humanTurn:
+                    location = p.mouse.get_pos()  # (x, y) location of mouse
+                    col = location[0] // SQ_SIZE
+                    row = location[1] // SQ_SIZE
+                    if sqSelected == (row, col):  # the user clicked the same square twice
+                        sqSelected = ()  # deselect
+                        playerClicks = []  # clear player clicks
+                    else:
 
-                    '''
-                        put parsed user voice input to here
-                    '''
-                    sqSelected = (row, col)
-                    playerClicks.append(sqSelected)  # append for both first and second clicks
+                        '''
+                            put parsed user voice input to here
+                        '''
+                        sqSelected = (row, col)
+                        playerClicks.append(sqSelected)  # append for both first and second clicks
 
-                # was that the user second click
-                if len(playerClicks) == 2:  # after the second click
+                    # was that the user second click
+                    if len(playerClicks) == 2:  # after the second click
 
-                    # Player Clicks[0] indicates initial move from the user
-                    # Player Clicks[1] indicates final move from the user.
-                    move = ChessEngine.Move(playerClicks[0], playerClicks[1], gs.board)
-                    # print(move.getChessNotation())
-                    for i in range(len(validMoves)):
-                        if move == validMoves[i]:
-                            gs.makeMove(validMoves[i])
-                            moveMade = True
-                            sqSelected = ()  # reset user clicks
-                            playerClicks = []
-                            if move.isEnPassantMove:
-                                print("en passant")
-                    if not moveMade:
-                        playerClicks = [sqSelected]
+                        # Player Clicks[0] indicates initial move from the user
+                        # Player Clicks[1] indicates final move from the user.
+                        move = ChessEngine.Move(playerClicks[0], playerClicks[1], gs.board)
+                        # print(move.getChessNotation())
+                        for i in range(len(validMoves)):
+                            if move == validMoves[i]:
+                                gs.makeMove(validMoves[i])
+                                moveMade = True
+                                sqSelected = ()  # reset user clicks
+                                playerClicks = []
+                                if move.isEnPassantMove:
+                                    print("en passant")
+                        if not moveMade:
+                            playerClicks = [sqSelected]
 
-            # key handlers
+                # key handlers
             if q_reverse.qsize() != 0:
                 # elif classified['labels'][0] == 'reverse':
-                if q_reverse.get(block=False, timeout=0.1):  # undo cmd+z for mac probably ctrl + z with windows machine
+                if q_reverse.get(block=False,
+                                 timeout=0.1):  # undo cmd+z for mac probably ctrl + z with windows machine
                     gs.undoMove()
                     moveMade = True
+
+        # AI move finder
+        if not humanTurn:
+            AIMove = SmartMoveFinder.findRandomMove(validMoves)
+            gs.makeMove(AIMove)
+            moveMade = True
+
+
         if moveMade:
             validMoves = gs.getValidMoves()
             moveMade = False
@@ -194,7 +204,7 @@ def highlightSquare(screen, gs, validMoves, sqSelected):
             s.fill(p.Color('yellow'))
             for move in validMoves:
                 if move.startRow == r and move.startCol == c:
-                    screen.blit(s, (SQ_SIZE*move.endCol, SQ_SIZE*move.endRow))
+                    screen.blit(s, (SQ_SIZE * move.endCol, SQ_SIZE * move.endRow))
 
 
 '''
@@ -204,9 +214,8 @@ Responsible for all the graphics within a current game state
 
 def drawGameState(screen, gs, validMoves, sqSelected):
     drawBoard(screen)  # draw Squares on the board
-    highlightSquare(screen,gs, validMoves,sqSelected)
+    highlightSquare(screen, gs, validMoves, sqSelected)
     drawPieces(screen, gs.board)  # draw pieces on top of those squares
-
 
 
 '''
