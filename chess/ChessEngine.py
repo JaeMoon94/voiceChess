@@ -10,7 +10,7 @@ class GameState:
         # Board is 8 x 8  2d array
         self.board = [
             ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"],
-            ["bp", "bp", "bp", "bp", "bp", "bp", "bp", "bp"],
+            ["bp", "bp", "bp", "bp", "bp", "bp", "wp", "bp"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
@@ -54,7 +54,8 @@ class GameState:
 
         # pawn promotion
         if move.isPawnPromotion:
-            self.board[move.endRow][move.endCol] = move.pieceMoved[0] + 'Q'
+            # self.board[move.endRow][move.endCol] = move.pieceMoved[0] + 'Q'
+            self.board[move.endRow][move.endCol] = move.pieceMoved[0] + self.whatToPromote()
 
         # en passant
 
@@ -366,6 +367,9 @@ class GameState:
     def isWhitetoMove(self):
         return self.whiteToMove
 
+    def whatToPromote(self, toPromote = 'Q'):
+        return toPromote
+
 
 class CastleRight:
     def __init__(self, wks, bks, wqs, bqs):
@@ -423,3 +427,6 @@ class Move:
 
     def getRankFile(self, r, c):
         return self.colsToFiles[c] + self.rowsToRanks[r]
+
+    def getIsPawnToPromote(self):
+        return self.isPawnPromotion
