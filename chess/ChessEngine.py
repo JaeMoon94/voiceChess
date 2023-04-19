@@ -177,7 +177,8 @@ class GameState:
         if self.inCheck():
             for move in moves:
                 # prints out possible move when check.
-                print(move.getChessNotation())
+                # print(move.getChessNotation())
+                pass
 
         if len(moves) == 0:
             if self.inCheck():
@@ -358,6 +359,12 @@ class GameState:
         if self.board[r][c - 1] == '--' and self.board[r][c - 2] == '--' and self.board[r][c - 3]:
             if not self.squareUnderAttack(r, c - 1) and not self.squareUnderAttack(r, c - 2):
                 moves.append(Move((r, c), (r, c - 2), self.board, isCastleMove=True))
+
+    def getCheckmate(self):
+        return self.checkMate
+
+    def isWhitetoMove(self):
+        return self.whiteToMove
 
 
 class CastleRight:

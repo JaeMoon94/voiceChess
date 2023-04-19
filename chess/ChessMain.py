@@ -18,8 +18,11 @@ q_movement = Queue()
 q_reverse = Queue()
 q_promotion = Queue()
 q_casting = Queue()
-q_startPosition = Queue()
-q_endPosition = Queue()
+q_position = Queue()
+q_reset = Queue()
+q_finish = Queue()
+q_stop = Queue()
+# q_endPosition = Queue()
 
 boardCombination = ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'b1', 'b2',
                     'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'c1', 'c2', 'c3', 'c4',
@@ -33,7 +36,7 @@ positionQueue = []
 
 classifier = pipeline('text-classification', model='distilbert-base-uncased-finetuned-sst-2-english')
 classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-candidate_labels = ['position change', 'reverse', 'cast', 'promotion']
+candidate_labels = ['position change', 'reverse', 'cast', 'promotion', 'finish', 'restart', 'stop', 'continue']
 promotion_candidate = ['pawn', 'rook', 'queen', 'knight', 'bishop']
 engine = pyttsx3.init()
 isStop = True
@@ -55,7 +58,7 @@ def listen():
             engine.say(text)
             # engine.runAndWait()
             classified = classifier(text, candidate_labels, multi_label=True)
-            print(classified)
+            print(classified['labels'][0])
 
             if "reverse" in classified['labels'][0]:
                 q_reverse.put(True)
@@ -69,21 +72,32 @@ def listen():
 
             if "cast" in classified['labels'][0]:
                 q_casting.put(True)
-            if "position change" in classified['labels'][0]:
+
+            if "position change" == classified['labels'][0]:
                 userChoice = re.split("\s", text)
+
                 for el in userChoice:
                     if el in boardCombination:
                         positionQueue.append(el)
 
-                        if positionQueue == 2:
-                            print(positionQueue)
-                            q_startPosition = positionQueue.pop(0)
-                            print(positionQueue)
-                            q_endPosition = positionQueue.pop(0)
-                            print(positionQueue)
-                        else:
-                            # We need to keep asking next question at this point
-                            pass
+                while len(positionQueue) != 0:
+                    print(positionQueue)
+                    q_position.put(positionQueue.pop(0))
+                    # print(convertRowAndCol(q_startPosition.get()))
+
+                # else:
+                #     # We need to keep asking next question at this point
+                #     pass
+            if "finish" == classified['labels'][0] or "continue" == classified['labels'][0]:
+                q_finish.put(False)
+
+            if "restart" == classified['labels'][0]:
+                q_reset.put(True)
+
+            if "stop" in classified['labels'][0]:
+                q_stop.put(True)
+
+
 
 
 '''
@@ -109,8 +123,8 @@ def main():
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
 
-    # listener = threading.Thread(target=listen)
-    # listener.start()
+    listener = threading.Thread(target=listen)
+    listener.start()
 
     validMoves = gs.getValidMoves()
     moveMade = False  # flag variable for when a move is made
@@ -123,64 +137,69 @@ def main():
     playerOne = True  # if a human is playing white, then this will be true.
     playerTwo = False  # if a human is playing black, then this will be true.
     while running:
+
         humanTurn = (gs.whiteToMove and playerOne) or (not gs.whiteToMove and playerTwo)
-        for e in p.event.get():
-            if e.type == p.QUIT:
-                isStop = False
-                running = False
-            # Mouse Handelr
-            elif e.type == p.MOUSEBUTTONDOWN:
-                if humanTurn:
-                    location = p.mouse.get_pos()  # (x, y) location of mouse
-                    col = location[0] // SQ_SIZE
-                    row = location[1] // SQ_SIZE
-                    if sqSelected == (row, col):  # the user clicked the same square twice
-                        sqSelected = ()  # deselect
-                        playerClicks = []  # clear player clicks
-                    else:
+        if q_finish.qsize() != 0:
+            playerOne = q_finish.get(block=False, timeout=0.1)
+        if q_stop.qsize() != 0:
+            playerOne = q_stop.get(block=False, timeout=0.1)
+        if p.event.get() == p.QUIT:
+            isStop = False
+            running = False
 
-                        '''
-                            put parsed user voice input to here
-                        '''
-                        sqSelected = (row, col)
-                        playerClicks.append(sqSelected)  # append for both first and second clicks
+        # undoing and it has a bug
+        elif q_reverse.qsize() != 0 and humanTurn:
+            # elif classified['labels'][0] == 'reverse':
+            if q_reverse.get(block=False,
+                             timeout=0.1):  # undo cmd+z for mac probably ctrl + z with windows machine
+                gs.undoMove()
+                moveMade = True
+        while q_position.qsize() != 0:
+            if humanTurn:
+                location = convertRowAndCol(q_position.get(block=False, timeout=0.1))
+                col = int(location[0])
+                row = int(location[1])
+                if sqSelected == (row, col):  # the user clicked the same square twice
+                    sqSelected = ()  # deselect
+                    playerClicks = []  # clear player clicks
+                else:
 
-                    # was that the user second click
-                    if len(playerClicks) == 2:  # after the second click
+                    '''
+                        put parsed user voice input to here
+                    '''
+                    sqSelected = (row, col)
+                    playerClicks.append(sqSelected)  # append for both first and second clicks
 
-                        # Player Clicks[0] indicates initial move from the user
-                        # Player Clicks[1] indicates final move from the user.
-                        move = ChessEngine.Move(playerClicks[0], playerClicks[1], gs.board)
-                        # print(move.getChessNotation())
-                        for i in range(len(validMoves)):
-                            if move == validMoves[i]:
-                                gs.makeMove(validMoves[i])
-                                moveMade = True
-                                sqSelected = ()  # reset user clicks
-                                playerClicks = []
-                                if move.isEnPassantMove:
-                                    print("en passant")
-                        if not moveMade:
-                            playerClicks = [sqSelected]
-
-                # key handlers
-            if q_reverse.qsize() != 0:
-                # elif classified['labels'][0] == 'reverse':
-                if q_reverse.get(block=False,
-                                 timeout=0.1):  # undo cmd+z for mac probably ctrl + z with windows machine
-                    gs.undoMove()
-                    moveMade = True
-
+                # was that the user second click
+                if len(playerClicks) == 2:  # after the second click
+                    move = ChessEngine.Move(playerClicks[0], playerClicks[1], gs.board)
+                    for i in range(len(validMoves)):
+                        if move == validMoves[i]:
+                            gs.makeMove(validMoves[i])
+                            moveMade = True
+                            sqSelected = ()  # reset user clicks
+                            playerClicks = []
+                            if move.isEnPassantMove:
+                                print("en passant")
+                    if not moveMade:
+                        playerClicks = [sqSelected]
         # AI move finder
         if not humanTurn:
             AIMove = SmartMoveFinder.findRandomMove(validMoves)
             gs.makeMove(AIMove)
             moveMade = True
 
-
         if moveMade:
             validMoves = gs.getValidMoves()
             moveMade = False
+
+        if q_reset.qsize() != 0:
+            if q_reset.get(block=False, timeout=0.1):
+                gs = ChessEngine.GameState()
+                playerOne = True
+                playerTwo = False
+                validMoves = gs.getValidMoves()
+                sqSelected = ()
 
         drawGameState(screen, gs, validMoves, sqSelected)
         clock.tick(MAX_FPS)
@@ -251,6 +270,13 @@ def drawPieces(screen, board):
 
                 pass
     pass
+
+
+def convertRowAndCol(position):
+    filesToCols = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
+    ranksToRows = {"1": 7, "2": 6, "3": 5, "4": 4,
+                   "5": 3, "6": 2, "7": 1, "8": 0}
+    return filesToCols[position[0]], ranksToRows[position[1]]
 
 
 if __name__ == "__main__":
