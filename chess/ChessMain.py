@@ -50,11 +50,15 @@ def listen():
         r.energy_threshold = 150
         print('Okay, go!')
         while isStop:
+
+            '''
+            Un Comment line 57 58 and 60 and comment out line 59  
+            '''
             # audio = r.listen(source)
             # audio = r.record(source, duration=5)
             text = input("Enter your value: ")
             # text = r.recognize_google(audio)
-            print("You said " + text)
+            # print("You said " + text)
             engine.say(text)
             # engine.runAndWait()
             classified = classifier(text, candidate_labels, multi_label=True)
